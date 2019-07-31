@@ -1,0 +1,37 @@
+dist: xenial
+language: cpp
+os: linux
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-7
+      - lcov
+
+before_install:
+  - eval "CC=gcc-7 && CXX=g++-7"
+  - sudo apt-get update
+  - sudo apt-get install apt-transport-https ca-certificates gnupg software-properties-common wget
+  - wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | sudo apt-key add -
+  - sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ xenial main'
+  - sudo apt-get update
+  - sudo apt-get install cmake
+  - git clone https://github.com/google/googletest.git
+  - cd googletest
+  - cmake . -DBUILD_GMOCK=OFF && make && sudo make install
+  - cd ..
+
+script:
+  - mkdir build
+  - cd build
+  - cmake .. -DCODE_COVERAGE=ON -DBUILD_BENCHMARKS=OFF -DCMAKE_BUILD_TYPE=Debug
+  - make
+  - ctest
+
+after_success:
+  - lcov --directory . --capture --output-file coverage.info
+  - lcov --remove coverage.info '/usr/*' '*/tests/*' --output-file coverage.info
+  - lcov --list coverage.info
+  - bash <(curl -s https://codecov.io/bash) -f coverage.info || echo "Codecov did not collect coverage reports"

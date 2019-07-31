@@ -1,0 +1,5 @@
+find_package(benchmark REQUIRED)
+add_executable(benchmarks benchmarks.cpp)
+target_link_libraries(benchmarks PRIVATE quadtree benchmark)
+setWarnings(benchmarks)
+setStandard(benchmarks)

@@ -1,0 +1,8 @@
+# Build
+build/
+
+# Compile commands
+compile_commands.json
+
+# Visual Studio Code
+.vscode
