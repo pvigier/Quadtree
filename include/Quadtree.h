@@ -54,13 +54,6 @@ private:
     class Node
     {
     public:
-        enum Type
-        {
-            Interior,
-            Leaf
-        };
-
-        Type type = Type::Leaf;
         const math::Box<Float> box;
         const std::size_t depth;
         Node* const parent;
@@ -78,47 +71,47 @@ private:
     Contain mContain;
     Intersect mIntersect;
 
+    bool isLeaf(const Node* node) const
+    {
+        return !static_cast<bool>(node->children[0]);
+    }
+
     void add(Node* node, const T& value)
     {
         assert(node != nullptr);
         assert(mContain(node->box, value));
-        switch (node->type)
+        if (isLeaf(node))
         {
-            case Node::Type::Leaf:
-                // Insert the value in this node if possible
-                if (node->depth >= MaxDepth || node->values.size() < Threshold)
-                    node->values.push_back(value);
-                // Otherwise, we split and we try again
-                else
-                {
-                    split(node);
-                    add(node, value);
-                }
-                return;
-            case Node::Type::Interior:
-                // Add the value in a child if the value is entirely contained in it
-                for (const auto& child : node->children)
-                {
-                    if (mContain(child->box, value))
-                    {
-                        add(child.get(), value);
-                        return;
-                    }
-                }
-                // Otherwise, we add the value in the current node
+            // Insert the value in this node if possible
+            if (node->depth >= MaxDepth || node->values.size() < Threshold)
                 node->values.push_back(value);
-                return;
-            default:
-                assert(false && "Invalid node type");
-                return;
+            // Otherwise, we split and we try again
+            else
+            {
+                split(node);
+                add(node, value);
+            }
+        }
+        else
+        {
+            // Add the value in a child if the value is entirely contained in it
+            for (const auto& child : node->children)
+            {
+                if (mContain(child->box, value))
+                {
+                    add(child.get(), value);
+                    return;
+                }
+            }
+            // Otherwise, we add the value in the current node
+            node->values.push_back(value);
         }
     }
 
     void split(Node* node)
     {
         assert(node != nullptr);
-        assert(node->type == Node::Type::Leaf && "Only leaves can be split");
-        node->type = Node::Type::Interior;
+        assert(isLeaf(node) && "Only leaves can be split");
         // Create children
         auto origin = node->box.getTopLeft();
         auto childSize = node->box.getSize() / static_cast<Float>(2);
@@ -162,49 +155,44 @@ private:
     {
         assert(node != nullptr);
         assert(mContain(node->box, value));
-        switch (node->type)
+        if (isLeaf(node))
         {
-            case Node::Type::Leaf:
-                // Remove the value from node
-                node->values.erase(std::find(std::begin(node->values), std::end(node->values), value));
-                // Try to merge the parent
-                if (node->parent != nullptr)
-                    tryMerge(node->parent);
-                return;
-            case Node::Type::Interior:
-                // Remove the value in a child if the value is entirely contained in it
-                for (const auto& child : node->children)
+            // Remove the value from node
+            node->values.erase(std::find(std::begin(node->values), std::end(node->values), value));
+            // Try to merge the parent
+            if (node->parent != nullptr)
+                tryMerge(node->parent);
+        }
+        else
+        {
+            // Remove the value in a child if the value is entirely contained in it
+            for (const auto& child : node->children)
+            {
+                if (mContain(child->box, value))
                 {
-                    if (mContain(child->box, value))
-                    {
-                        remove(child.get(), value);
-                        return;
-                    }
+                    remove(child.get(), value);
+                    return;
                 }
-                // Otherwise, we remove the value from the current node
-                node->values.erase(std::find(std::begin(node->values), std::end(node->values), value));
-                return;
-            default:
-                assert(false && "Invalid node type");
-                return;
+            }
+            // Otherwise, we remove the value from the current node
+            node->values.erase(std::find(std::begin(node->values), std::end(node->values), value));
         }
     }
 
     void tryMerge(Node* node)
     {
         assert(node != nullptr);
-        assert(node->type == Node::Type::Interior && "Only interior nodes can be merged");
+        assert(!isLeaf(node) && "Only interior nodes can be merged");
         auto nbValues = node->values.size();
         // MAYBE: unroll the loop
         for (const auto& child : node->children)
         {
-            if (!child->type == Node::Type::Leaf)
+            if (!isLeaf(child.get()))
                 return;
             nbValues += child->values.size();
         }
         if (nbValues <= Threshold)
         {
-            node->type = Node::Type::Leaf;
             node->values.reserve(nbValues);
             // Merge the values of all the children
             for (const auto& child : node->children)
@@ -227,20 +215,13 @@ private:
             if (mIntersect(box, value))
                 values.push_back(value);
         }
-        switch (node->type)
+        if (!isLeaf(node))
         {
-            case Node::Type::Leaf:
-                return;
-            case Node::Type::Interior:
-                for (const auto& child : node->children)
-                {
-                    if (box.intersects(child->box))
-                        query(child.get(), box, values);
-                }
-                return;
-            default:
-                assert(false && "Invalid node type");
-                break;
+            for (const auto& child : node->children)
+            {
+                if (box.intersects(child->box))
+                    query(child.get(), box, values);
+            }
         }
     }
 };
