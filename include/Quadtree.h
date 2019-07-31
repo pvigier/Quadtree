@@ -37,7 +37,7 @@ public:
 
     void remove(const T& value)
     {
-        remove(mRoot.get(), mBox, value);
+        remove(mRoot.get(), nullptr, mBox, value);
     }
 
     std::vector<T> query(const math::Box<Float>& box) const
@@ -51,17 +51,10 @@ private:
     static constexpr auto Threshold = std::size_t(16);
     static constexpr auto MaxDepth = std::size_t(8);
 
-    class Node
+    struct Node
     {
-    public:
-        Node* const parent;
         std::array<std::unique_ptr<Node>, 4> children;
         std::vector<T> values;
-
-        Node(Node* p = nullptr) : parent(p)
-        {
-
-        }
     };
 
     math::Box<Float> mBox;
@@ -132,10 +125,9 @@ private:
         assert(node != nullptr);
         assert(isLeaf(node) && "Only leaves can be split");
         // Create children
-        node->children[0] = std::make_unique<Node>(node);
-        node->children[1] = std::make_unique<Node>(node);
-        node->children[2] = std::make_unique<Node>(node);
-        node->children[3] = std::make_unique<Node>(node);
+        // MAYBE: seems to be faster to unroll the loops
+        for (auto& child : node->children)
+            child = std::make_unique<Node>();
         // Assign values to children
         auto newValues = std::vector<T>(); // New values for this node
         auto childBoxes = std::array<math::Box<Float>, 4>();
@@ -159,7 +151,7 @@ private:
         node->values = std::move(newValues);
     }
 
-    void remove(Node* node, const math::Box<Float>& box, const T& value)
+    void remove(Node* node, Node* parent, const math::Box<Float>& box, const T& value)
     {
         assert(node != nullptr);
         assert(mContain(box, value));
@@ -168,8 +160,8 @@ private:
             // Remove the value from node
             node->values.erase(std::find(std::begin(node->values), std::end(node->values), value));
             // Try to merge the parent
-            if (node->parent != nullptr)
-                tryMerge(node->parent);
+            if (parent != nullptr)
+                tryMerge(parent);
         }
         else
         {
@@ -179,7 +171,7 @@ private:
                 auto childBox = computeBox(box, i);
                 if (mContain(childBox, value))
                 {
-                    remove(node->children[i].get(), childBox, value);
+                    remove(node->children[i].get(), node, childBox, value);
                     return;
                 }
             }
