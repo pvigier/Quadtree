@@ -25,25 +25,25 @@ class Quadtree
 public:
     Quadtree(const math::Box<Float>& box, const Contain& contain = Contain(),
         const Intersect& intersect = Intersect()) :
-        mRoot(std::make_unique<Node>(box)), mContain(contain), mIntersect(intersect)
+        mBox(box), mRoot(std::make_unique<Node>()), mContain(contain), mIntersect(intersect)
     {
 
     }
 
     void add(const T& value)
     {
-        add(mRoot.get(), value);
+        add(mRoot.get(), mBox, value);
     }
 
     void remove(const T& value)
     {
-        remove(mRoot.get(), value);
+        remove(mRoot.get(), mBox, value);
     }
 
     std::vector<T> query(const math::Box<Float>& box) const
     {
         auto values = std::vector<T>();
-        query(mRoot.get(), box, values);
+        query(mRoot.get(), mBox, box, values);
         return values;
     }
 
@@ -54,19 +54,18 @@ private:
     class Node
     {
     public:
-        const math::Box<Float> box;
         const std::size_t depth;
         Node* const parent;
         std::array<std::unique_ptr<Node>, 4> children;
         std::vector<T> values;
 
-        Node(const math::Box<Float>& b, std::size_t d = 0, Node* p = nullptr) :
-            box(b), depth(d), parent(p)
+        Node(std::size_t d = 0, Node* p = nullptr) : depth(d), parent(p)
         {
 
         }
     };
 
+    math::Box<Float> mBox;
     std::unique_ptr<Node> mRoot;
     Contain mContain;
     Intersect mIntersect;
@@ -76,10 +75,30 @@ private:
         return !static_cast<bool>(node->children[0]);
     }
 
-    void add(Node* node, const T& value)
+    math::Box<Float> computeBox(const math::Box<Float>& box, std::size_t i) const
+    {
+        auto origin = box.getTopLeft();
+        auto childSize = box.getSize() / static_cast<Float>(2);
+        switch (i)
+        {
+            case 0:
+                return math::Box<Float>(origin, childSize);
+            case 1:
+                return math::Box<Float>(math::Vector2<Float>(origin.x + childSize.x, origin.y), childSize);
+            case 2:
+                return math::Box<Float>(math::Vector2<Float>(origin.x, origin.y + childSize.y), childSize);
+            case 3:
+                return math::Box<Float>(origin + childSize, childSize);
+            default:
+                assert(false && "Invalid child index");
+                return math::Box<Float>();
+        }
+    }
+
+    void add(Node* node, const math::Box<Float>& box, const T& value)
     {
         assert(node != nullptr);
-        assert(mContain(node->box, value));
+        assert(mContain(box, value));
         if (isLeaf(node))
         {
             // Insert the value in this node if possible
@@ -88,18 +107,19 @@ private:
             // Otherwise, we split and we try again
             else
             {
-                split(node);
-                add(node, value);
+                split(node, box);
+                add(node, box, value);
             }
         }
         else
         {
             // Add the value in a child if the value is entirely contained in it
-            for (const auto& child : node->children)
+            for (auto i = std::size_t(0); i < node->children.size(); ++i)
             {
-                if (mContain(child->box, value))
+                auto childBox = computeBox(box, i);
+                if (mContain(childBox, value))
                 {
-                    add(child.get(), value);
+                    add(node->children[i].get(), childBox, value);
                     return;
                 }
             }
@@ -108,39 +128,28 @@ private:
         }
     }
 
-    void split(Node* node)
+    void split(Node* node, const math::Box<Float>& box)
     {
         assert(node != nullptr);
         assert(isLeaf(node) && "Only leaves can be split");
         // Create children
-        auto origin = node->box.getTopLeft();
-        auto childSize = node->box.getSize() / static_cast<Float>(2);
-        node->children[0] = std::make_unique<Node>(
-            math::Box<Float>(origin, childSize),
-            node->depth + 1,
-            node);
-        node->children[1] = std::make_unique<Node>(
-            math::Box<Float>(math::Vector2<Float>(origin.x + childSize.x, origin.y), childSize),
-            node->depth + 1,
-            node);
-        node->children[2] = std::make_unique<Node>(
-            math::Box<Float>(math::Vector2<Float>(origin.x, origin.y + childSize.y), childSize),
-            node->depth + 1,
-            node);
-        node->children[3] = std::make_unique<Node>(
-            math::Box<Float>(origin + childSize, childSize),
-            node->depth + 1,
-            node);
+        node->children[0] = std::make_unique<Node>(node->depth + 1, node);
+        node->children[1] = std::make_unique<Node>(node->depth + 1, node);
+        node->children[2] = std::make_unique<Node>(node->depth + 1, node);
+        node->children[3] = std::make_unique<Node>(node->depth + 1, node);
         // Assign values to children
         auto newValues = std::vector<T>(); // New values for this node
+        auto childBoxes = std::array<math::Box<Float>, 4>();
+        for (auto i = std::size_t(0); i < node->children.size(); ++i)
+            childBoxes[i] = computeBox(box, i);
         for (const auto& value : node->values)
         {
             auto inserted = false;
-            for (auto& child : node->children)
+            for (auto i = std::size_t(0); i < node->children.size(); ++i)
             {
-                if (mContain(child->box, value))
+                if (mContain(childBoxes[i], value))
                 {
-                    child->values.push_back(value);
+                    node->children[i]->values.push_back(value);
                     inserted = true;
                     break;
                 }
@@ -151,10 +160,10 @@ private:
         node->values = std::move(newValues);
     }
 
-    void remove(Node* node, const T& value)
+    void remove(Node* node, const math::Box<Float>& box, const T& value)
     {
         assert(node != nullptr);
-        assert(mContain(node->box, value));
+        assert(mContain(box, value));
         if (isLeaf(node))
         {
             // Remove the value from node
@@ -166,11 +175,12 @@ private:
         else
         {
             // Remove the value in a child if the value is entirely contained in it
-            for (const auto& child : node->children)
+            for (auto i = std::size_t(0); i < node->children.size(); ++i)
             {
-                if (mContain(child->box, value))
+                auto childBox = computeBox(box, i);
+                if (mContain(childBox, value))
                 {
-                    remove(child.get(), value);
+                    remove(node->children[i].get(), childBox, value);
                     return;
                 }
             }
@@ -206,21 +216,23 @@ private:
         }
     }
 
-    void query(Node* node, const math::Box<Float>& box, std::vector<T>& values) const
+    void query(Node* node, const math::Box<Float>& box, const math::Box<Float>& queryBox,
+        std::vector<T>& values) const
     {
         assert(node != nullptr);
-        assert(box.intersects(node->box));
+        assert(queryBox.intersects(box));
         for (const auto& value : node->values)
         {
-            if (mIntersect(box, value))
+            if (mIntersect(queryBox, value))
                 values.push_back(value);
         }
         if (!isLeaf(node))
         {
-            for (const auto& child : node->children)
+            for (auto i = std::size_t(0); i < node->children.size(); ++i)
             {
-                if (box.intersects(child->box))
-                    query(child.get(), box, values);
+                auto childBox = computeBox(box, i);
+                if (queryBox.intersects(childBox))
+                    query(node->children[i].get(), childBox, queryBox, values);
             }
         }
     }
