@@ -32,7 +32,7 @@ public:
 
     void add(const T& value)
     {
-        add(mRoot.get(), mBox, value);
+        add(mRoot.get(), 0, mBox, value);
     }
 
     void remove(const T& value)
@@ -54,12 +54,11 @@ private:
     class Node
     {
     public:
-        const std::size_t depth;
         Node* const parent;
         std::array<std::unique_ptr<Node>, 4> children;
         std::vector<T> values;
 
-        Node(std::size_t d = 0, Node* p = nullptr) : depth(d), parent(p)
+        Node(Node* p = nullptr) : parent(p)
         {
 
         }
@@ -95,20 +94,20 @@ private:
         }
     }
 
-    void add(Node* node, const math::Box<Float>& box, const T& value)
+    void add(Node* node, std::size_t depth, const math::Box<Float>& box, const T& value)
     {
         assert(node != nullptr);
         assert(mContain(box, value));
         if (isLeaf(node))
         {
             // Insert the value in this node if possible
-            if (node->depth >= MaxDepth || node->values.size() < Threshold)
+            if (depth >= MaxDepth || node->values.size() < Threshold)
                 node->values.push_back(value);
             // Otherwise, we split and we try again
             else
             {
                 split(node, box);
-                add(node, box, value);
+                add(node, depth, box, value);
             }
         }
         else
@@ -119,7 +118,7 @@ private:
                 auto childBox = computeBox(box, i);
                 if (mContain(childBox, value))
                 {
-                    add(node->children[i].get(), childBox, value);
+                    add(node->children[i].get(), depth + 1, childBox, value);
                     return;
                 }
             }
@@ -133,10 +132,10 @@ private:
         assert(node != nullptr);
         assert(isLeaf(node) && "Only leaves can be split");
         // Create children
-        node->children[0] = std::make_unique<Node>(node->depth + 1, node);
-        node->children[1] = std::make_unique<Node>(node->depth + 1, node);
-        node->children[2] = std::make_unique<Node>(node->depth + 1, node);
-        node->children[3] = std::make_unique<Node>(node->depth + 1, node);
+        node->children[0] = std::make_unique<Node>(node);
+        node->children[1] = std::make_unique<Node>(node);
+        node->children[2] = std::make_unique<Node>(node);
+        node->children[3] = std::make_unique<Node>(node);
         // Assign values to children
         auto newValues = std::vector<T>(); // New values for this node
         auto childBoxes = std::array<math::Box<Float>, 4>();
