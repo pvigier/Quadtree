@@ -112,10 +112,6 @@ TEST_P(QuadtreeTest, AddAndQueryTest)
     {
         return node->box;
     };
-    auto intersect = [](const Box<float>& box, Node* node)
-    {
-        return box.intersects(node->box);
-    };
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(n);
     // Add nodes to quadtree
@@ -125,7 +121,7 @@ TEST_P(QuadtreeTest, AddAndQueryTest)
     // Quadtree
     auto intersections1 = std::vector<std::vector<Node*>>(nodes.size());
     for (const auto& node : nodes)
-        intersections1[node.id] = quadtree.query(intersect, node.box);
+        intersections1[node.id] = quadtree.query(node.box);
     // Brute force
     auto intersections2 = std::vector<std::vector<Node*>>(nodes.size());
     for (const auto& node : nodes)
@@ -142,10 +138,6 @@ TEST_P(QuadtreeTest, AddAndFindAllIntersectionsTest)
     {
         return node->box;
     };
-    auto intersect = [](Node* lhs, Node* rhs)
-    {
-        return lhs->box.intersects(rhs->box);
-    };
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(n);
     // Add nodes to quadtree
@@ -153,7 +145,7 @@ TEST_P(QuadtreeTest, AddAndFindAllIntersectionsTest)
     for (auto& node : nodes)
         quadtree.add(&node);
     // Quadtree
-    auto intersections1 = quadtree.findAllIntersections(intersect);
+    auto intersections1 = quadtree.findAllIntersections();
     // Brute force
     auto intersections2 = findAllIntersections(nodes, {});
     // Check
@@ -166,10 +158,6 @@ TEST_P(QuadtreeTest, AddRemoveAndQueryTest)
     auto getBox = [](Node* node)
     {
         return node->box;
-    };
-    auto intersect = [](const Box<float>& box, Node* node)
-    {
-        return box.intersects(node->box);
     };
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(n);
@@ -193,7 +181,7 @@ TEST_P(QuadtreeTest, AddRemoveAndQueryTest)
     for (const auto& node : nodes)
     {
         if (!removed[node.id])
-            intersections1[node.id] = quadtree.query(intersect, node.box);
+            intersections1[node.id] = quadtree.query(node.box);
     }
     // Brute force
     auto intersections2 = std::vector<std::vector<Node*>>(n);
@@ -219,10 +207,6 @@ TEST_P(QuadtreeTest, AddRemoveAndFindAllIntersectionsTest)
     {
         return node->box;
     };
-    auto intersect = [](Node* lhs, Node* rhs)
-    {
-        return lhs->box.intersects(rhs->box);
-    };
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(n);
     // Add nodes to quadtree
@@ -241,7 +225,7 @@ TEST_P(QuadtreeTest, AddRemoveAndFindAllIntersectionsTest)
             quadtree.remove(&node);
     }
     // Quadtree
-    auto intersections1 = quadtree.findAllIntersections(intersect);
+    auto intersections1 = quadtree.findAllIntersections();
     // Brute force
     auto intersections2 = findAllIntersections(nodes, removed);
     // Check

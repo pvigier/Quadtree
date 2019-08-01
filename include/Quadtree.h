@@ -40,25 +40,17 @@ public:
         remove(mRoot.get(), nullptr, mBox, value);
     }
 
-    template<typename Intersect>
-    std::vector<T> query(const Intersect& intersect, const math::Box<Float>& box) const
+    std::vector<T> query(const math::Box<Float>& box) const
     {
-        static_assert(std::is_convertible_v<
-            decltype(std::declval<Intersect>()(math::Box<Float>(), std::declval<T>())), bool>,
-            "Intersect must be a callable of signature bool(const math::Box<Float>&, const T&)");
         auto values = std::vector<T>();
-        query(intersect, mRoot.get(), mBox, box, values);
+        query(mRoot.get(), mBox, box, values);
         return values;
     }
 
-    template<typename Intersect>
-    std::vector<std::pair<T, T>> findAllIntersections(const Intersect& intersect) const
+    std::vector<std::pair<T, T>> findAllIntersections() const
     {
-        static_assert(std::is_convertible_v<
-            decltype(std::declval<Intersect>()(std::declval<T>(), std::declval<T>())), bool>,
-            "Intersect must be a callable of signature bool(const T&, const T&)");
         auto intersections = std::vector<std::pair<T, T>>();
-        findAllIntersections(intersect, mRoot.get(), intersections);
+        findAllIntersections(mRoot.get(), intersections);
         return intersections;
     }
 
@@ -239,15 +231,13 @@ private:
         }
     }
 
-    template<typename Intersect>
-    void query(const Intersect& intersect, Node* node, const math::Box<Float>& box,
-        const math::Box<Float>& queryBox, std::vector<T>& values) const
+    void query(Node* node, const math::Box<Float>& box, const math::Box<Float>& queryBox, std::vector<T>& values) const
     {
         assert(node != nullptr);
         assert(queryBox.intersects(box));
         for (const auto& value : node->values)
         {
-            if (intersect(queryBox, value))
+            if (queryBox.intersects(mGetBox(value)))
                 values.push_back(value);
         }
         if (!isLeaf(node))
@@ -256,14 +246,12 @@ private:
             {
                 auto childBox = computeBox(box, static_cast<int>(i));
                 if (queryBox.intersects(childBox))
-                    query(intersect, node->children[i].get(), childBox, queryBox, values);
+                    query(node->children[i].get(), childBox, queryBox, values);
             }
         }
     }
 
-    template<typename Intersect>
-    void findAllIntersections(const Intersect& intersect, Node* node,
-        std::vector<std::pair<T, T>>& intersections) const
+    void findAllIntersections(Node* node, std::vector<std::pair<T, T>>& intersections) const
     {
         // Find intersections between values stored in this node
         // Make sure to not report the same intersection twice
@@ -271,7 +259,7 @@ private:
         {
             for (auto j = std::size_t(0); j < i; ++j)
             {
-                if (intersect(node->values[i], node->values[j]))
+                if (mGetBox(node->values[i]).intersects(mGetBox(node->values[j])))
                     intersections.emplace_back(node->values[i], node->values[j]);
             }
         }
@@ -281,29 +269,27 @@ private:
             for (const auto& child : node->children) // TODO: try to swap the two loops
             {
                 for (const auto& value : node->values)
-                    findIntersectionsInChildren(intersect, child.get(), value, intersections);
+                    findIntersectionsInChildren(child.get(), value, intersections);
             }
             // Find intersections in children
             for (const auto& child : node->children)
-                findAllIntersections(intersect, child.get(), intersections);
+                findAllIntersections(child.get(), intersections);
         }
     }
 
-    template<typename Intersect>
-    void findIntersectionsInChildren(const Intersect& intersect, Node* node, const T& value,
-        std::vector<std::pair<T, T>>& intersections) const
+    void findIntersectionsInChildren(Node* node, const T& value, std::vector<std::pair<T, T>>& intersections) const
     {
         // Test against the values stored in this node
         for (const auto& other : node->values)
         {
-            if (intersect(value, other))
+            if (mGetBox(value).intersects(mGetBox(other)))
                 intersections.emplace_back(value, other);
         }
         // Test against values stored into descendants of this node
         if (!isLeaf(node))
         {
             for (const auto& child : node->children)
-                findIntersectionsInChildren(intersect, child.get(), value, intersections);
+                findIntersectionsInChildren(child.get(), value, intersections);
         }
     }
 };

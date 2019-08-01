@@ -66,14 +66,6 @@ int main()
     {
         return node->box;
     };
-    auto intersectBox = [](const Box<float>& box, Node* node)
-    {
-        return box.intersects(node->box);
-    };
-    auto intersectNode = [](Node* lhs, Node* rhs)
-    {
-        return lhs->box.intersects(rhs->box);
-    };
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(n);
     // Add nodes to quadtree
@@ -98,7 +90,7 @@ int main()
     for (const auto& node : nodes)
     {
         if (!removed[node.id])
-            intersections1[node.id] = quadtree.query(intersectBox, node.box);
+            intersections1[node.id] = quadtree.query(node.box);
     }
     auto duration2 = std::chrono::steady_clock::now() - start2;
     auto duration1 = std::chrono::steady_clock::now() - start1;
@@ -109,7 +101,7 @@ int main()
     // Check
     //checkIntersections(intersections1[node.id], intersections2[node.id]);
     // Find all intersections
-    auto intersections3 = quadtree.findAllIntersections(intersectNode);
+    auto intersections3 = quadtree.findAllIntersections();
     std::cout << intersections3.size() << '\n';
     std::cout << intersections2.size() << '\n';
 

@@ -79,10 +79,7 @@ void quadtreeQuery(benchmark::State& state)
     {
         return node->box;
     };
-    auto intersect = [](const Box<float>& box, Node* node)
-    {
-        return box.intersects(node->box);
-    };
+
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(static_cast<std::size_t>(state.range()));
     for (auto _ : state)
@@ -92,7 +89,7 @@ void quadtreeQuery(benchmark::State& state)
         for (auto& node : nodes)
             quadtree.add(&node);
         for (const auto& node : nodes)
-            intersections[node.id] = quadtree.query(intersect, node.box);
+            intersections[node.id] = quadtree.query(node.box);
     }
 }
 
@@ -103,10 +100,6 @@ void quadtreeFindAllIntersections(benchmark::State& state)
     {
         return node->box;
     };
-    auto intersect = [](Node* lhs, Node* rhs)
-    {
-        return lhs->box.intersects(rhs->box);
-    };
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(static_cast<std::size_t>(state.range()));
     for (auto _ : state)
@@ -114,7 +107,7 @@ void quadtreeFindAllIntersections(benchmark::State& state)
         auto quadtree = Quadtree<Node*, decltype(getBox)>(box, getBox);
         for (auto& node : nodes)
             quadtree.add(&node);
-        auto intersections = quadtree.findAllIntersections(intersect);
+        auto intersections = quadtree.findAllIntersections();
     }
 }
 
