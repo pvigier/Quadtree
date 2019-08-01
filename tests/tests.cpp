@@ -108,9 +108,9 @@ protected:
 TEST_P(QuadtreeTest, AddAndQueryTest)
 {
     auto n = GetParam();
-    auto contain = [](const Box<float>& box, Node* node)
+    auto getBox = [](Node* node)
     {
-        return box.contains(node->box);
+        return node->box;
     };
     auto intersect = [](const Box<float>& box, Node* node)
     {
@@ -119,7 +119,7 @@ TEST_P(QuadtreeTest, AddAndQueryTest)
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(n);
     // Add nodes to quadtree
-    auto quadtree = Quadtree<Node*, decltype(contain)>(box, contain);
+    auto quadtree = Quadtree<Node*, decltype(getBox)>(box, getBox);
     for (auto& node : nodes)
         quadtree.add(&node);
     // Quadtree
@@ -138,9 +138,9 @@ TEST_P(QuadtreeTest, AddAndQueryTest)
 TEST_P(QuadtreeTest, AddAndFindAllIntersectionsTest)
 {
     auto n = GetParam();
-    auto contain = [](const Box<float>& box, Node* node)
+    auto getBox = [](Node* node)
     {
-        return box.contains(node->box);
+        return node->box;
     };
     auto intersect = [](Node* lhs, Node* rhs)
     {
@@ -149,7 +149,7 @@ TEST_P(QuadtreeTest, AddAndFindAllIntersectionsTest)
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(n);
     // Add nodes to quadtree
-    auto quadtree = Quadtree<Node*, decltype(contain)>(box, contain);
+    auto quadtree = Quadtree<Node*, decltype(getBox)>(box, getBox);
     for (auto& node : nodes)
         quadtree.add(&node);
     // Quadtree
@@ -163,9 +163,9 @@ TEST_P(QuadtreeTest, AddAndFindAllIntersectionsTest)
 TEST_P(QuadtreeTest, AddRemoveAndQueryTest)
 {
     auto n = GetParam();
-    auto contain = [](const Box<float>& box, Node* node)
+    auto getBox = [](Node* node)
     {
-        return box.contains(node->box);
+        return node->box;
     };
     auto intersect = [](const Box<float>& box, Node* node)
     {
@@ -174,7 +174,7 @@ TEST_P(QuadtreeTest, AddRemoveAndQueryTest)
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(n);
     // Add nodes to quadtree
-    auto quadtree = Quadtree<Node*, decltype(contain)>(box, contain);
+    auto quadtree = Quadtree<Node*, decltype(getBox)>(box, getBox);
     for (auto& node : nodes)
         quadtree.add(&node);
     // Randomly remove some nodes
@@ -215,9 +215,9 @@ TEST_P(QuadtreeTest, AddRemoveAndQueryTest)
 TEST_P(QuadtreeTest, AddRemoveAndFindAllIntersectionsTest)
 {
     auto n = GetParam();
-    auto contain = [](const Box<float>& box, Node* node)
+    auto getBox = [](Node* node)
     {
-        return box.contains(node->box);
+        return node->box;
     };
     auto intersect = [](Node* lhs, Node* rhs)
     {
@@ -226,7 +226,7 @@ TEST_P(QuadtreeTest, AddRemoveAndFindAllIntersectionsTest)
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(n);
     // Add nodes to quadtree
-    auto quadtree = Quadtree<Node*, decltype(contain)>(box, contain);
+    auto quadtree = Quadtree<Node*, decltype(getBox)>(box, getBox);
     for (auto& node : nodes)
         quadtree.add(&node);
     // Randomly remove some nodes

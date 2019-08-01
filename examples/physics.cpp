@@ -62,9 +62,9 @@ void checkIntersections(std::vector<Node*> nodes1, std::vector<Node*> nodes2)
 int main()
 {
     auto n = std::size_t(1000);
-    auto contain = [](const Box<float>& box, Node* node)
+    auto getBox = [](Node* node)
     {
-        return box.contains(node->box);
+        return node->box;
     };
     auto intersectBox = [](const Box<float>& box, Node* node)
     {
@@ -77,7 +77,7 @@ int main()
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(n);
     // Add nodes to quadtree
-    auto quadtree = Quadtree<Node*, decltype(contain)>(box, contain);
+    auto quadtree = Quadtree<Node*, decltype(getBox)>(box, getBox);
     auto start1 = std::chrono::steady_clock::now();
     for (auto& node : nodes)
         quadtree.add(&node);

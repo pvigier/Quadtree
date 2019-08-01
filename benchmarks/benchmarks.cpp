@@ -57,16 +57,16 @@ std::vector<std::pair<Node*, Node*>> findAllIntersections(std::vector<Node>& nod
 void quadtreeBuild(benchmark::State& state)
 {
 
-    auto contain = [](const Box<float>& box, Node* node)
+    auto getBox = [](Node* node)
     {
-        return box.contains(node->box);
+        return node->box;
     };
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(static_cast<std::size_t>(state.range()));
     for (auto _ : state)
     {
         auto intersections = std::vector<std::vector<Node*>>(nodes.size());
-        auto quadtree = Quadtree<Node*, decltype(contain)>(box, contain);
+        auto quadtree = Quadtree<Node*, decltype(getBox)>(box, getBox);
         for (auto& node : nodes)
             quadtree.add(&node);
     }
@@ -75,9 +75,9 @@ void quadtreeBuild(benchmark::State& state)
 void quadtreeQuery(benchmark::State& state)
 {
 
-    auto contain = [](const Box<float>& box, Node* node)
+    auto getBox = [](Node* node)
     {
-        return box.contains(node->box);
+        return node->box;
     };
     auto intersect = [](const Box<float>& box, Node* node)
     {
@@ -88,7 +88,7 @@ void quadtreeQuery(benchmark::State& state)
     for (auto _ : state)
     {
         auto intersections = std::vector<std::vector<Node*>>(nodes.size());
-        auto quadtree = Quadtree<Node*, decltype(contain)>(box, contain);
+        auto quadtree = Quadtree<Node*, decltype(getBox)>(box, getBox);
         for (auto& node : nodes)
             quadtree.add(&node);
         for (const auto& node : nodes)
@@ -99,9 +99,9 @@ void quadtreeQuery(benchmark::State& state)
 void quadtreeFindAllIntersections(benchmark::State& state)
 {
 
-    auto contain = [](const Box<float>& box, Node* node)
+    auto getBox = [](Node* node)
     {
-        return box.contains(node->box);
+        return node->box;
     };
     auto intersect = [](Node* lhs, Node* rhs)
     {
@@ -111,7 +111,7 @@ void quadtreeFindAllIntersections(benchmark::State& state)
     auto nodes = generateRandomNodes(static_cast<std::size_t>(state.range()));
     for (auto _ : state)
     {
-        auto quadtree = Quadtree<Node*, decltype(contain)>(box, contain);
+        auto quadtree = Quadtree<Node*, decltype(getBox)>(box, getBox);
         for (auto& node : nodes)
             quadtree.add(&node);
         auto intersections = quadtree.findAllIntersections(intersect);

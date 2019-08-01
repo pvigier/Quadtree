@@ -11,21 +11,21 @@ namespace ds
 {
 
 // MAYBE: add Equal type because it is used in std::find during removal
-template<typename T, typename Contain, typename Equal = std::equal_to<T>, typename Float = float>
+template<typename T, typename GetBox, typename Equal = std::equal_to<T>, typename Float = float>
 class Quadtree
 {
     static_assert(std::is_convertible_v<
-        decltype(std::declval<Contain>()(math::Box<Float>(), std::declval<T>())), bool>,
-        "Contain must be a callable of signature bool(const math::Box<Float>&, const T&)");
+        decltype(std::declval<GetBox>()(std::declval<T>())), math::Box<Float>>,
+        "GetBox must be a callable of signature math::Box<Float>(const T&)");
     static_assert(std::is_convertible_v<
         decltype(std::declval<Equal>()(std::declval<T>(), std::declval<T>())), bool>,
         "Equal must be a callable of signature bool(const T&, const T&)");
     static_assert(std::is_arithmetic_v<Float>);
 
 public:
-    Quadtree(const math::Box<Float>& box, const Contain& contain = Contain(),
+    Quadtree(const math::Box<Float>& box, const GetBox& getBox = GetBox(),
         const Equal& equal = Equal()) :
-        mBox(box), mRoot(std::make_unique<Node>()), mContain(contain), mEqual(equal)
+        mBox(box), mRoot(std::make_unique<Node>()), mGetBox(getBox), mEqual(equal)
     {
 
     }
@@ -74,7 +74,7 @@ private:
 
     math::Box<Float> mBox;
     std::unique_ptr<Node> mRoot;
-    Contain mContain;
+    GetBox mGetBox;
     Equal mEqual;
 
     bool isLeaf(const Node* node) const
@@ -82,7 +82,7 @@ private:
         return !static_cast<bool>(node->children[0]);
     }
 
-    math::Box<Float> computeBox(const math::Box<Float>& box, std::size_t i) const
+    math::Box<Float> computeBox(const math::Box<Float>& box, int i) const
     {
         auto origin = box.getTopLeft();
         auto childSize = box.getSize() / static_cast<Float>(2);
@@ -102,10 +102,36 @@ private:
         }
     }
 
+    int getQuadrant(const math::Box<Float>& nodeBox, const math::Box<Float>& valueBox) const
+    {
+        // TODO: compute center
+        auto center = nodeBox.getCenter();
+        if (valueBox.getRight() < center.x)
+        {
+            if (valueBox.getBottom() < center.y)
+                return 0;
+            else if (valueBox.top >= center.y)
+                return 2;
+            else
+                return -1;
+        }
+        else if (valueBox.left >= center.x)
+        {
+            if (valueBox.getBottom() < center.y)
+                return 1;
+            else if (valueBox.top >= center.y)
+                return 3;
+            else
+                return -1;
+        }
+        else
+            return -1;
+    }
+
     void add(Node* node, std::size_t depth, const math::Box<Float>& box, const T& value)
     {
         assert(node != nullptr);
-        assert(mContain(box, value));
+        assert(box.contains(mGetBox(value)));
         if (isLeaf(node))
         {
             // Insert the value in this node if possible
@@ -120,18 +146,13 @@ private:
         }
         else
         {
+            auto i = getQuadrant(box, mGetBox(value));
             // Add the value in a child if the value is entirely contained in it
-            for (auto i = std::size_t(0); i < node->children.size(); ++i)
-            {
-                auto childBox = computeBox(box, i);
-                if (mContain(childBox, value))
-                {
-                    add(node->children[i].get(), depth + 1, childBox, value);
-                    return;
-                }
-            }
+            if (i != -1)
+                add(node->children[static_cast<std::size_t>(i)].get(), depth + 1, computeBox(box, i), value);
             // Otherwise, we add the value in the current node
-            node->values.push_back(value);
+            else
+                node->values.push_back(value);
         }
     }
 
@@ -145,22 +166,12 @@ private:
             child = std::make_unique<Node>();
         // Assign values to children
         auto newValues = std::vector<T>(); // New values for this node
-        auto childBoxes = std::array<math::Box<Float>, 4>();
-        for (auto i = std::size_t(0); i < node->children.size(); ++i)
-            childBoxes[i] = computeBox(box, i);
         for (const auto& value : node->values)
         {
-            auto inserted = false;
-            for (auto i = std::size_t(0); i < node->children.size(); ++i)
-            {
-                if (mContain(childBoxes[i], value))
-                {
-                    node->children[i]->values.push_back(value);
-                    inserted = true;
-                    break;
-                }
-            }
-            if (!inserted)
+            auto i = getQuadrant(box, mGetBox(value));
+            if (i != -1)
+                node->children[static_cast<std::size_t>(i)]->values.push_back(value);
+            else
                 newValues.push_back(value);
         }
         node->values = std::move(newValues);
@@ -169,7 +180,7 @@ private:
     void remove(Node* node, Node* parent, const math::Box<Float>& box, const T& value)
     {
         assert(node != nullptr);
-        assert(mContain(box, value));
+        assert(box.contains(mGetBox(value)));
         if (isLeaf(node))
         {
             // Remove the value from node
@@ -181,17 +192,12 @@ private:
         else
         {
             // Remove the value in a child if the value is entirely contained in it
-            for (auto i = std::size_t(0); i < node->children.size(); ++i)
-            {
-                auto childBox = computeBox(box, i);
-                if (mContain(childBox, value))
-                {
-                    remove(node->children[i].get(), node, childBox, value);
-                    return;
-                }
-            }
+            auto i = getQuadrant(box, mGetBox(value));
+            if (i != -1)
+                remove(node->children[static_cast<std::size_t>(i)].get(), node, computeBox(box, i), value);
             // Otherwise, we remove the value from the current node
-            removeValue(node, value);
+            else
+                removeValue(node, value);
         }
     }
 
@@ -248,7 +254,7 @@ private:
         {
             for (auto i = std::size_t(0); i < node->children.size(); ++i)
             {
-                auto childBox = computeBox(box, i);
+                auto childBox = computeBox(box, static_cast<int>(i));
                 if (queryBox.intersects(childBox))
                     query(intersect, node->children[i].get(), childBox, queryBox, values);
             }
