@@ -47,6 +47,13 @@ public:
         return values;
     }
 
+    std::vector<std::pair<T, T>> findAllIntersections() const
+    {
+        auto intersections = std::vector<std::pair<T, T>>();
+        findAllIntersections(mRoot.get(), intersections);
+        return intersections;
+    }
+
 private:
     static constexpr auto Threshold = std::size_t(16);
     static constexpr auto MaxDepth = std::size_t(8);
@@ -225,6 +232,42 @@ private:
                 if (queryBox.intersects(childBox))
                     query(node->children[i].get(), childBox, queryBox, values);
             }
+        }
+    }
+
+    void findAllIntersections(Node* node, std::vector<std::pair<T, T>>& intersections) const
+    {
+        for (auto i = std::size_t(0); i < node->values.size(); ++i)
+        {
+            for (auto j = std::size_t(0); j < i; ++j)
+            {
+                if (node->values[i]->box.intersects(node->values[j]->box)) // temporary
+                    intersections.emplace_back(node->values[i], node->values[j]);
+            }
+        }
+        if (!isLeaf(node))
+        {
+            for (const auto& child : node->children) // TODO: try to swap the two loops
+            {
+                for (const auto& value : node->values)
+                    findIntersectionsInChildren(child.get(), value, intersections);
+            }
+            for (const auto& child : node->children)
+                findAllIntersections(child.get(), intersections);
+        }
+    }
+
+    void findIntersectionsInChildren(Node* node, const T& value, std::vector<std::pair<T, T>>& intersections) const
+    {
+        for (auto i = std::size_t(0); i < node->values.size(); ++i)
+        {
+            if (value->box.intersects(node->values[i]->box)) // temporary
+                intersections.emplace_back(value, node->values[i]);
+        }
+        if (!isLeaf(node))
+        {
+            for (const auto& child : node->children)
+                findIntersectionsInChildren(child.get(), value, intersections);
         }
     }
 };

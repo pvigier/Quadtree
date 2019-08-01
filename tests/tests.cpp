@@ -28,7 +28,7 @@ std::vector<Node> generateRandomNodes(std::size_t n)
     return nodes;
 }
 
-std::vector<Node*> computeIntersections(const math::Box<float>& box, std::vector<Node>& nodes, const std::vector<bool>& removed)
+std::vector<Node*> query(const math::Box<float>& box, std::vector<Node>& nodes, const std::vector<bool>& removed)
 {
     auto intersections = std::vector<Node*>();
     for (auto& n : nodes)
@@ -42,18 +42,53 @@ std::vector<Node*> computeIntersections(const math::Box<float>& box, std::vector
     return intersections;
 }
 
+std::vector<std::pair<Node*, Node*>> findAllIntersections(std::vector<Node>& nodes, const std::vector<bool>& removed)
+{
+    auto intersections = std::vector<std::pair<Node*, Node*>>();
+    for (auto i = std::size_t(0); i < nodes.size(); ++i)
+    {
+        if (removed.size() == 0 || !removed[i])
+        {
+            for (auto j = std::size_t(0); j < i; ++j)
+            {
+                if (removed.size() == 0 || !removed[j])
+                {
+                    if (nodes[i].box.intersects(nodes[j].box))
+                        intersections.emplace_back(&nodes[i], &nodes[j]);
+                }
+            }
+        }
+    }
+    return intersections;
+}
+
 bool checkIntersections(std::vector<Node*> nodes1, std::vector<Node*> nodes2)
 {
     if (nodes1.size() != nodes2.size())
         return false;
     std::sort(std::begin(nodes1), std::end(nodes1));
     std::sort(std::begin(nodes2), std::end(nodes2));
-    for (auto i = std::size_t(0); i < nodes1.size(); ++i)
+    return nodes1 == nodes2;
+}
+
+bool checkIntersections(std::vector<std::pair<Node*, Node*>> intersections1,
+    std::vector<std::pair<Node*, Node*>> intersections2)
+{
+    if (intersections1.size() != intersections2.size())
+        return false;
+    for (auto& intersection : intersections1)
     {
-        if (nodes1[i] != nodes2[i])
-            return false;
+        if (intersection.first >= intersection.second)
+            std::swap(intersection.first, intersection.second);
     }
-    return true;
+    for (auto& intersection : intersections2)
+    {
+        if (intersection.first >= intersection.second)
+            std::swap(intersection.first, intersection.second);
+    }
+    std::sort(std::begin(intersections1), std::end(intersections1));
+    std::sort(std::begin(intersections2), std::end(intersections2));
+    return intersections1 == intersections2;
 }
 
 class QuadtreeTest : public ::testing::TestWithParam<std::size_t>
@@ -70,7 +105,8 @@ protected:
     }
 };
 
-TEST_P(QuadtreeTest, AddAndQueryTest) {
+TEST_P(QuadtreeTest, AddAndQueryTest)
+{
     auto n = GetParam();
     auto contain = [](const Box<float>& box, Node* node)
     {
@@ -93,13 +129,39 @@ TEST_P(QuadtreeTest, AddAndQueryTest) {
     // Brute force
     auto intersections2 = std::vector<std::vector<Node*>>(nodes.size());
     for (const auto& node : nodes)
-        intersections2[node.id] = computeIntersections(node.box, nodes, {});
+        intersections2[node.id] = query(node.box, nodes, {});
     // Check
     for (const auto& node : nodes)
         ASSERT_TRUE(checkIntersections(intersections1[node.id], intersections2[node.id]));
 }
 
-TEST_P(QuadtreeTest, AddRemoveAndQueryTest) {
+TEST_P(QuadtreeTest, AddAndFindAllIntersectionsTest)
+{
+    auto n = GetParam();
+    auto contain = [](const Box<float>& box, Node* node)
+    {
+        return box.contains(node->box);
+    };
+    auto intersect = [](const Box<float>& box, Node* node)
+    {
+        return box.intersects(node->box);
+    };
+    auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
+    auto nodes = generateRandomNodes(n);
+    // Add nodes to quadtree
+    auto quadtree = Quadtree<Node*, decltype(contain), decltype(intersect)>(box, contain, intersect);
+    for (auto& node : nodes)
+        quadtree.add(&node);
+    // Quadtree
+    auto intersections1 = quadtree.findAllIntersections();
+    // Brute force
+    auto intersections2 = findAllIntersections(nodes, {});
+    // Check
+    ASSERT_TRUE(checkIntersections(intersections1, intersections2));
+}
+
+TEST_P(QuadtreeTest, AddRemoveAndQueryTest)
+{
     auto n = GetParam();
     auto contain = [](const Box<float>& box, Node* node)
     {
@@ -138,7 +200,7 @@ TEST_P(QuadtreeTest, AddRemoveAndQueryTest) {
     for (const auto& node : nodes)
     {
         if (!removed[node.id])
-            intersections2[node.id] = computeIntersections(node.box, nodes, removed);
+            intersections2[node.id] = query(node.box, nodes, removed);
     }
     // Check
     for (const auto& node : nodes)
@@ -148,6 +210,42 @@ TEST_P(QuadtreeTest, AddRemoveAndQueryTest) {
             ASSERT_TRUE(checkIntersections(intersections1[node.id], intersections2[node.id]));
         }
     }
+}
+
+TEST_P(QuadtreeTest, AddRemoveAndFindAllIntersectionsTest)
+{
+    auto n = GetParam();
+    auto contain = [](const Box<float>& box, Node* node)
+    {
+        return box.contains(node->box);
+    };
+    auto intersect = [](const Box<float>& box, Node* node)
+    {
+        return box.intersects(node->box);
+    };
+    auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
+    auto nodes = generateRandomNodes(n);
+    // Add nodes to quadtree
+    auto quadtree = Quadtree<Node*, decltype(contain), decltype(intersect)>(box, contain, intersect);
+    for (auto& node : nodes)
+        quadtree.add(&node);
+    // Randomly remove some nodes
+    auto generator = std::default_random_engine();
+    auto deathDistribution = std::uniform_int_distribution(0, 1);
+    auto removed = std::vector<bool>(nodes.size());
+    std::generate(std::begin(removed), std::end(removed),
+        [&generator, &deathDistribution](){ return deathDistribution(generator); });
+    for (auto& node : nodes)
+    {
+        if (removed[node.id])
+            quadtree.remove(&node);
+    }
+    // Quadtree
+    auto intersections1 = quadtree.findAllIntersections();
+    // Brute force
+    auto intersections2 = findAllIntersections(nodes, removed);
+    // Check
+    ASSERT_TRUE(checkIntersections(intersections1, intersections2));
 }
 
 INSTANTIATE_TEST_CASE_P(SmallValues, QuadtreeTest, ::testing::Range(1ul, 200ul));
