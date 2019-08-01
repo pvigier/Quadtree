@@ -16,7 +16,7 @@ std::vector<Node> generateRandomNodes(std::size_t n)
 {
     auto generator = std::default_random_engine();
     auto originDistribution = std::uniform_real_distribution(0.0f, 1.0f);
-    auto sizeDistribution = std::uniform_real_distribution(0.0f, 0.001f);
+    auto sizeDistribution = std::uniform_real_distribution(0.0f, 0.01f);
     auto nodes = std::vector<Node>(n);
     for (auto i = std::size_t(0); i < n; ++i)
     {
@@ -61,16 +61,12 @@ void quadtreeBuild(benchmark::State& state)
     {
         return box.contains(node->box);
     };
-    auto intersect = [](const Box<float>& box, Node* node)
-    {
-        return box.intersects(node->box);
-    };
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(static_cast<std::size_t>(state.range()));
     for (auto _ : state)
     {
         auto intersections = std::vector<std::vector<Node*>>(nodes.size());
-        auto quadtree = Quadtree<Node*, decltype(contain), decltype(intersect)>(box, contain, intersect);
+        auto quadtree = Quadtree<Node*, decltype(contain)>(box, contain);
         for (auto& node : nodes)
             quadtree.add(&node);
     }
@@ -92,11 +88,11 @@ void quadtreeQuery(benchmark::State& state)
     for (auto _ : state)
     {
         auto intersections = std::vector<std::vector<Node*>>(nodes.size());
-        auto quadtree = Quadtree<Node*, decltype(contain), decltype(intersect)>(box, contain, intersect);
+        auto quadtree = Quadtree<Node*, decltype(contain)>(box, contain);
         for (auto& node : nodes)
             quadtree.add(&node);
         for (const auto& node : nodes)
-            intersections[node.id] = quadtree.query(node.box);
+            intersections[node.id] = quadtree.query(intersect, node.box);
     }
 }
 
@@ -107,18 +103,18 @@ void quadtreeFindAllIntersections(benchmark::State& state)
     {
         return box.contains(node->box);
     };
-    auto intersect = [](const Box<float>& box, Node* node)
+    auto intersect = [](Node* lhs, Node* rhs)
     {
-        return box.intersects(node->box);
+        return lhs->box.intersects(rhs->box);
     };
     auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(static_cast<std::size_t>(state.range()));
     for (auto _ : state)
     {
-        auto quadtree = Quadtree<Node*, decltype(contain), decltype(intersect)>(box, contain, intersect);
+        auto quadtree = Quadtree<Node*, decltype(contain)>(box, contain);
         for (auto& node : nodes)
             quadtree.add(&node);
-        auto intersections = quadtree.findAllIntersections();
+        auto intersections = quadtree.findAllIntersections(intersect);
     }
 }
 
