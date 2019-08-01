@@ -11,17 +11,21 @@ namespace ds
 {
 
 // MAYBE: add Equal type because it is used in std::find during removal
-template<typename T, typename Contain, typename Float = float>
+template<typename T, typename Contain, typename Equal = std::equal_to<T>, typename Float = float>
 class Quadtree
 {
     static_assert(std::is_convertible_v<
         decltype(std::declval<Contain>()(math::Box<Float>(), std::declval<T>())), bool>,
         "Contain must be a callable of signature bool(const math::Box<Float>&, const T&)");
+    static_assert(std::is_convertible_v<
+        decltype(std::declval<Equal>()(std::declval<T>(), std::declval<T>())), bool>,
+        "Equal must be a callable of signature bool(const T&, const T&)");
     static_assert(std::is_arithmetic_v<Float>);
 
 public:
-    Quadtree(const math::Box<Float>& box, const Contain& contain = Contain()) :
-        mBox(box), mRoot(std::make_unique<Node>()), mContain(contain)
+    Quadtree(const math::Box<Float>& box, const Contain& contain = Contain(),
+        const Equal& equal = Equal()) :
+        mBox(box), mRoot(std::make_unique<Node>()), mContain(contain), mEqual(equal)
     {
 
     }
@@ -71,6 +75,7 @@ private:
     math::Box<Float> mBox;
     std::unique_ptr<Node> mRoot;
     Contain mContain;
+    Equal mEqual;
 
     bool isLeaf(const Node* node) const
     {
@@ -168,7 +173,7 @@ private:
         if (isLeaf(node))
         {
             // Remove the value from node
-            node->values.erase(std::find(std::begin(node->values), std::end(node->values), value));
+            removeValue(node, value);
             // Try to merge the parent
             if (parent != nullptr)
                 tryMerge(parent);
@@ -186,8 +191,19 @@ private:
                 }
             }
             // Otherwise, we remove the value from the current node
-            node->values.erase(std::find(std::begin(node->values), std::end(node->values), value));
+            removeValue(node, value);
         }
+    }
+
+    void removeValue(Node* node, const T& value)
+    {
+        // Find the value in node->values
+        auto it = std::find_if(std::begin(node->values), std::end(node->values),
+            [this, &value](const auto& rhs){ return mEqual(value, rhs); });
+        assert(it != std::end(node->values) && "Trying to remove a value thas is not present in the node");
+        // Swap with the last element and pop back
+        *it = std::move(node->values.back());
+        node->values.pop_back();
     }
 
     void tryMerge(Node* node)
