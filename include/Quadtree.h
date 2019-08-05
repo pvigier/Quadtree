@@ -13,11 +13,9 @@ namespace quadtree
 template<typename T, typename GetBox, typename Equal = std::equal_to<T>, typename Float = float>
 class Quadtree
 {
-    static_assert(std::is_convertible_v<
-        decltype(std::declval<GetBox>()(std::declval<T>())), Box<Float>>,
+    static_assert(std::is_convertible_v<std::invoke_result_t<GetBox, const T&>, Box<Float>>,
         "GetBox must be a callable of signature Box<Float>(const T&)");
-    static_assert(std::is_convertible_v<
-        decltype(std::declval<Equal>()(std::declval<T>(), std::declval<T>())), bool>,
+    static_assert(std::is_convertible_v<std::invoke_result_t<Equal, const T&, const T&>, bool>,
         "Equal must be a callable of signature bool(const T&, const T&)");
     static_assert(std::is_arithmetic_v<Float>);
 
@@ -195,7 +193,7 @@ private:
         // Find the value in node->values
         auto it = std::find_if(std::begin(node->values), std::end(node->values),
             [this, &value](const auto& rhs){ return mEqual(value, rhs); });
-        assert(it != std::end(node->values) && "Trying to remove a value thas is not present in the node");
+        assert(it != std::end(node->values) && "Trying to remove a value that is not present in the node");
         // Swap with the last element and pop back
         *it = std::move(node->values.back());
         node->values.pop_back();
