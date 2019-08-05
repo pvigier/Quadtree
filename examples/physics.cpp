@@ -4,8 +4,7 @@
 #include <random>
 #include "Quadtree.h"
 
-using namespace ds;
-using namespace math;
+using namespace quadtree;
 
 struct Node
 {

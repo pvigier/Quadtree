@@ -3,8 +3,7 @@
 #include <benchmark/benchmark.h>
 #include "Quadtree.h"
 
-using namespace ds;
-using namespace math;
+using namespace quadtree;
 
 struct Node
 {
@@ -29,7 +28,7 @@ std::vector<Node> generateRandomNodes(std::size_t n)
     return nodes;
 }
 
-std::vector<Node*> query(const math::Box<float>& box, std::vector<Node>& nodes)
+std::vector<Node*> query(const Box<float>& box, std::vector<Node>& nodes)
 {
     auto intersections = std::vector<Node*>();
     for (auto& n : nodes)

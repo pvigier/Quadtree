@@ -2,7 +2,7 @@
 
 #include "Vector2.h"
 
-namespace math
+namespace quadtree
 {
 
 template<typename T>
@@ -41,11 +41,6 @@ public:
         return Vector2<T>(left, top);
     }
 
-    constexpr Vector2<T> getBottomRight() const noexcept
-    {
-        return Vector2<T>(left + width, top + height);
-    }
-
     constexpr Vector2<T> getCenter() const noexcept
     {
         return Vector2<T>(left + width / 2, top + height / 2);
@@ -56,29 +51,8 @@ public:
         return Vector2<T>(width, height);
     }
 
-    constexpr T getArea() const noexcept
-    {
-        return width * height;
-    }
-
-    constexpr bool contains(const Vector2<T>& point) const noexcept
-    {
-        // TODO: assertions to check that width and height are positive
-        return left <= point.x && point.x < getRight() &&
-            top <= point.y && point.y < getBottom();
-    }
-
-    constexpr bool almostContains(const Vector2<T>& point) const noexcept
-    {
-        // TODO: assertions to check that width and height are positive
-        // Check that the point is inside the closure of the box
-        return left <= point.x && point.x <= getRight() &&
-            top <= point.y && point.y <= getBottom();
-    }
-
     constexpr bool contains(const Box<T>& box) const noexcept
     {
-        // TODO: assertions to check that width and height are positive
         return left <= box.left && box.getRight() <= getRight() &&
             top <= box.top && box.getBottom() <= getBottom();
     }
@@ -87,12 +61,6 @@ public:
     {
         return !(left >= box.getRight() || getRight() <= box.left ||
             top >= box.getBottom() || getBottom() <= box.top);
-    }
-
-    constexpr bool almostIntersects(const Box<T>& box) const noexcept
-    {
-        return !(left > box.getRight() || getRight() < box.left ||
-            top > box.getBottom() || getBottom() < box.top);
     }
 };
 

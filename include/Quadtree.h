@@ -7,23 +7,22 @@
 #include <vector>
 #include "Box.h"
 
-namespace ds
+namespace quadtree
 {
 
-// MAYBE: add Equal type because it is used in std::find during removal
 template<typename T, typename GetBox, typename Equal = std::equal_to<T>, typename Float = float>
 class Quadtree
 {
     static_assert(std::is_convertible_v<
-        decltype(std::declval<GetBox>()(std::declval<T>())), math::Box<Float>>,
-        "GetBox must be a callable of signature math::Box<Float>(const T&)");
+        decltype(std::declval<GetBox>()(std::declval<T>())), Box<Float>>,
+        "GetBox must be a callable of signature Box<Float>(const T&)");
     static_assert(std::is_convertible_v<
         decltype(std::declval<Equal>()(std::declval<T>(), std::declval<T>())), bool>,
         "Equal must be a callable of signature bool(const T&, const T&)");
     static_assert(std::is_arithmetic_v<Float>);
 
 public:
-    Quadtree(const math::Box<Float>& box, const GetBox& getBox = GetBox(),
+    Quadtree(const Box<Float>& box, const GetBox& getBox = GetBox(),
         const Equal& equal = Equal()) :
         mBox(box), mRoot(std::make_unique<Node>()), mGetBox(getBox), mEqual(equal)
     {
@@ -40,7 +39,7 @@ public:
         remove(mRoot.get(), nullptr, mBox, value);
     }
 
-    std::vector<T> query(const math::Box<Float>& box) const
+    std::vector<T> query(const Box<Float>& box) const
     {
         auto values = std::vector<T>();
         query(mRoot.get(), mBox, box, values);
@@ -64,7 +63,7 @@ private:
         std::vector<T> values;
     };
 
-    math::Box<Float> mBox;
+    Box<Float> mBox;
     std::unique_ptr<Node> mRoot;
     GetBox mGetBox;
     Equal mEqual;
@@ -74,29 +73,28 @@ private:
         return !static_cast<bool>(node->children[0]);
     }
 
-    math::Box<Float> computeBox(const math::Box<Float>& box, int i) const
+    Box<Float> computeBox(const Box<Float>& box, int i) const
     {
         auto origin = box.getTopLeft();
         auto childSize = box.getSize() / static_cast<Float>(2);
         switch (i)
         {
             case 0:
-                return math::Box<Float>(origin, childSize);
+                return Box<Float>(origin, childSize);
             case 1:
-                return math::Box<Float>(math::Vector2<Float>(origin.x + childSize.x, origin.y), childSize);
+                return Box<Float>(Vector2<Float>(origin.x + childSize.x, origin.y), childSize);
             case 2:
-                return math::Box<Float>(math::Vector2<Float>(origin.x, origin.y + childSize.y), childSize);
+                return Box<Float>(Vector2<Float>(origin.x, origin.y + childSize.y), childSize);
             case 3:
-                return math::Box<Float>(origin + childSize, childSize);
+                return Box<Float>(origin + childSize, childSize);
             default:
                 assert(false && "Invalid child index");
-                return math::Box<Float>();
+                return Box<Float>();
         }
     }
 
-    int getQuadrant(const math::Box<Float>& nodeBox, const math::Box<Float>& valueBox) const
+    int getQuadrant(const Box<Float>& nodeBox, const Box<Float>& valueBox) const
     {
-        // TODO: compute center
         auto center = nodeBox.getCenter();
         if (valueBox.getRight() < center.x)
         {
@@ -120,7 +118,7 @@ private:
             return -1;
     }
 
-    void add(Node* node, std::size_t depth, const math::Box<Float>& box, const T& value)
+    void add(Node* node, std::size_t depth, const Box<Float>& box, const T& value)
     {
         assert(node != nullptr);
         assert(box.contains(mGetBox(value)));
@@ -148,12 +146,11 @@ private:
         }
     }
 
-    void split(Node* node, const math::Box<Float>& box)
+    void split(Node* node, const Box<Float>& box)
     {
         assert(node != nullptr);
         assert(isLeaf(node) && "Only leaves can be split");
         // Create children
-        // MAYBE: seems to be faster to unroll the loops
         for (auto& child : node->children)
             child = std::make_unique<Node>();
         // Assign values to children
@@ -169,7 +166,7 @@ private:
         node->values = std::move(newValues);
     }
 
-    void remove(Node* node, Node* parent, const math::Box<Float>& box, const T& value)
+    void remove(Node* node, Node* parent, const Box<Float>& box, const T& value)
     {
         assert(node != nullptr);
         assert(box.contains(mGetBox(value)));
@@ -209,7 +206,6 @@ private:
         assert(node != nullptr);
         assert(!isLeaf(node) && "Only interior nodes can be merged");
         auto nbValues = node->values.size();
-        // MAYBE: unroll the loop
         for (const auto& child : node->children)
         {
             if (!isLeaf(child.get()))
@@ -231,7 +227,7 @@ private:
         }
     }
 
-    void query(Node* node, const math::Box<Float>& box, const math::Box<Float>& queryBox, std::vector<T>& values) const
+    void query(Node* node, const Box<Float>& box, const Box<Float>& queryBox, std::vector<T>& values) const
     {
         assert(node != nullptr);
         assert(queryBox.intersects(box));
@@ -266,7 +262,7 @@ private:
         if (!isLeaf(node))
         {
             // Values in this node can intersect values in descendants
-            for (const auto& child : node->children) // TODO: try to swap the two loops
+            for (const auto& child : node->children)
             {
                 for (const auto& value : node->values)
                     findIntersectionsInChildren(child.get(), value, intersections);
