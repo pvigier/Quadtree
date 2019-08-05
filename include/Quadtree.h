@@ -77,12 +77,16 @@ private:
         auto childSize = box.getSize() / static_cast<Float>(2);
         switch (i)
         {
+            // North West
             case 0:
                 return Box<Float>(origin, childSize);
+            // Norst East
             case 1:
                 return Box<Float>(Vector2<Float>(origin.x + childSize.x, origin.y), childSize);
+            // South West
             case 2:
                 return Box<Float>(Vector2<Float>(origin.x, origin.y + childSize.y), childSize);
+            // South East
             case 3:
                 return Box<Float>(origin + childSize, childSize);
             default:
@@ -94,24 +98,33 @@ private:
     int getQuadrant(const Box<Float>& nodeBox, const Box<Float>& valueBox) const
     {
         auto center = nodeBox.getCenter();
+        // West
         if (valueBox.getRight() < center.x)
         {
+            // North West
             if (valueBox.getBottom() < center.y)
                 return 0;
+            // South West
             else if (valueBox.top >= center.y)
                 return 2;
+            // Not contained in any quadrant
             else
                 return -1;
         }
+        // East
         else if (valueBox.left >= center.x)
         {
+            // North East
             if (valueBox.getBottom() < center.y)
                 return 1;
+            // South East
             else if (valueBox.top >= center.y)
                 return 3;
+            // Not contained in any quadrant
             else
                 return -1;
         }
+        // Not contained in any quadrant
         else
             return -1;
     }
@@ -263,7 +276,7 @@ private:
             for (const auto& child : node->children)
             {
                 for (const auto& value : node->values)
-                    findIntersectionsInChildren(child.get(), value, intersections);
+                    findIntersectionsInDescendants(child.get(), value, intersections);
             }
             // Find intersections in children
             for (const auto& child : node->children)
@@ -271,7 +284,7 @@ private:
         }
     }
 
-    void findIntersectionsInChildren(Node* node, const T& value, std::vector<std::pair<T, T>>& intersections) const
+    void findIntersectionsInDescendants(Node* node, const T& value, std::vector<std::pair<T, T>>& intersections) const
     {
         // Test against the values stored in this node
         for (const auto& other : node->values)
@@ -283,7 +296,7 @@ private:
         if (!isLeaf(node))
         {
             for (const auto& child : node->children)
-                findIntersectionsInChildren(child.get(), value, intersections);
+                findIntersectionsInDescendants(child.get(), value, intersections);
         }
     }
 };
