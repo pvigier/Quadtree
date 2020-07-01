@@ -25,7 +25,7 @@ class Quadtree
     static_assert(std::is_convertible_v<std::invoke_result_t<Equal, const T&, const T&>, bool>,
 #endif
         "Equal must be a callable of signature bool(const T&, const T&)");
-    static_assert(std::is_arithmetic<Float>::value);
+    static_assert(std::is_arithmetic<Float>::value, "is_arithmetic<Float> is false");
 
 public:
     Quadtree(const Box<Float>& box, const GetBox& getBox = GetBox(),
