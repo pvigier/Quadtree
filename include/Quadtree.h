@@ -10,12 +10,26 @@
 namespace quadtree
 {
 
+namespace detail
+{
+    template <typename T>
+    struct StdMakeUnique
+    {
+        template <typename... Args>
+        std::unique_ptr<T> operator() (Args&&... args)
+        {
+            return std::make_unique<T>(std::forward<Args>(args)...);
+        }
+    };
+}
+
 template<
     typename T,
     typename GetBox,
     typename Equal = std::equal_to<T>,
     typename Float = float,
-    template <typename> class Allocator = std::allocator
+    template <typename> class Allocator = std::allocator,
+    template <typename> class MakeUnique = detail::StdMakeUnique
 >
 class Quadtree
 {
@@ -31,7 +45,7 @@ public:
 
     Quadtree(const Box<Float>& box, const GetBox& getBox = GetBox(),
         const Equal& equal = Equal()) :
-        mBox(box), mRoot(std::make_unique<Node>()), mGetBox(getBox), mEqual(equal)
+        mBox(box), mMakeUnique(), mRoot(mMakeUnique()), mGetBox(getBox), mEqual(equal)
     {
 
     }
@@ -64,14 +78,22 @@ private:
     static constexpr auto Threshold = std::size_t(16);
     static constexpr auto MaxDepth = std::size_t(8);
 
+    struct Node;
+#if __cplusplus < 201703L
+    typedef typename std::result_of<MakeUnique<Node>()>::type UniqueNodePtr;
+#else
+    typedef std::invoke_result_t<MakeUnique<Node>> UniqueNodePtr;
+#endif
+
     struct Node
     {
-        std::array<std::unique_ptr<Node>, 4> children;
+        std::array<UniqueNodePtr, 4> children;
         vector_type<T> values;
     };
 
     Box<Float> mBox;
-    std::unique_ptr<Node> mRoot;
+    MakeUnique<Node> mMakeUnique;
+    UniqueNodePtr mRoot;
     GetBox mGetBox;
     Equal mEqual;
 
@@ -172,7 +194,7 @@ private:
         assert(isLeaf(node) && "Only leaves can be split");
         // Create children
         for (auto& child : node->children)
-            child = std::make_unique<Node>();
+            child = mMakeUnique();
         // Assign values to children
         auto newValues = vector_type<T>(); // New values for this node
         for (const auto& value : node->values)
