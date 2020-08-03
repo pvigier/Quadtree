@@ -46,7 +46,7 @@ endfunction()
 # Set standard
 
 function(setStandard target)
-    target_compile_features(${target} PRIVATE cxx_std_17)
+    target_compile_features(${target} PRIVATE cxx_std_14)
 endfunction()
 
 # Benchmarks

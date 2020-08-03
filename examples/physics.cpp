@@ -15,8 +15,8 @@ struct Node
 std::vector<Node> generateRandomNodes(std::size_t n)
 {
     auto generator = std::default_random_engine();
-    auto originDistribution = std::uniform_real_distribution(0.0f, 1.0f);
-    auto sizeDistribution = std::uniform_real_distribution(0.0f, 0.01f);
+    auto originDistribution = std::uniform_real_distribution<float>(0.0f, 1.0f);
+    auto sizeDistribution = std::uniform_real_distribution<float>(0.0f, 0.01f);
     auto nodes = std::vector<Node>(n);
     for (auto i = std::size_t(0); i < n; ++i)
     {
@@ -65,7 +65,7 @@ int main()
     {
         return node->box;
     };
-    auto box = Box(0.0f, 0.0f, 1.0f, 1.0f);
+    auto box = Box<float>(0.0f, 0.0f, 1.0f, 1.0f);
     auto nodes = generateRandomNodes(n);
     // Add nodes to quadtree
     auto quadtree = Quadtree<Node*, decltype(getBox)>(box, getBox);
@@ -74,7 +74,7 @@ int main()
         quadtree.add(&node);
     // Randomly remove some nodes
     auto generator = std::default_random_engine();
-    auto deathDistribution = std::uniform_int_distribution(0, 1);
+    auto deathDistribution = std::uniform_int_distribution<int>(0, 1);
     auto removed = std::vector<bool>(nodes.size(), false);
     std::generate(std::begin(removed), std::end(removed),
         [&generator, &deathDistribution](){ return deathDistribution(generator); });
