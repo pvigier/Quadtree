@@ -136,4 +136,4 @@ BENCHMARK(quadtreeFindAllIntersections)->RangeMultiplier(10)->Range(100, 100000)
 BENCHMARK(bruteForceQuery)->RangeMultiplier(10)->Range(100, 10000)->Unit(benchmark::kMicrosecond);
 BENCHMARK(bruteForceFindAllIntersections)->RangeMultiplier(10)->Range(100, 10000)->Unit(benchmark::kMicrosecond);
 
-BENCHMARK_MAIN()
+BENCHMARK_MAIN();
