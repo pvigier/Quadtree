@@ -34,7 +34,7 @@ public:
 
     void remove(const T& value)
     {
-        remove(mRoot.get(), nullptr, mBox, value);
+        remove(mRoot.get(), mBox, value);
     }
 
     std::vector<T> query(const Box<Float>& box) const
@@ -177,7 +177,7 @@ private:
         node->values = std::move(newValues);
     }
 
-    void remove(Node* node, Node* parent, const Box<Float>& box, const T& value)
+    bool remove(Node* node, const Box<Float>& box, const T& value)
     {
         assert(node != nullptr);
         assert(box.contains(mGetBox(value)));
@@ -185,19 +185,21 @@ private:
         {
             // Remove the value from node
             removeValue(node, value);
-            // Try to merge the parent
-            if (parent != nullptr)
-                tryMerge(parent);
+            return true;
         }
         else
         {
             // Remove the value in a child if the value is entirely contained in it
             auto i = getQuadrant(box, mGetBox(value));
             if (i != -1)
-                remove(node->children[static_cast<std::size_t>(i)].get(), node, computeBox(box, i), value);
+            {
+                if (remove(node->children[static_cast<std::size_t>(i)].get(), computeBox(box, i), value))
+                    return tryMerge(node);
+            }
             // Otherwise, we remove the value from the current node
             else
                 removeValue(node, value);
+            return false;
         }
     }
 
@@ -212,7 +214,7 @@ private:
         node->values.pop_back();
     }
 
-    void tryMerge(Node* node)
+    bool tryMerge(Node* node)
     {
         assert(node != nullptr);
         assert(!isLeaf(node) && "Only interior nodes can be merged");
@@ -220,7 +222,7 @@ private:
         for (const auto& child : node->children)
         {
             if (!isLeaf(child.get()))
-                return;
+                return false;
             nbValues += child->values.size();
         }
         if (nbValues <= Threshold)
@@ -235,7 +237,10 @@ private:
             // Remove the children
             for (auto& child : node->children)
                 child.reset();
+            return true;
         }
+        else
+            return false;
     }
 
     void query(Node* node, const Box<Float>& box, const Box<Float>& queryBox, std::vector<T>& values) const
