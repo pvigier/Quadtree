@@ -19,7 +19,7 @@
 
 I have written an article on my blog describing the design and the code of the library. It is available [here](https://pvigier.github.io/2019/07/28/quadtree-collision-detection.html).
 
-Otherwise, just look at the [Quadtree.h](https://github.com/pvigier/ecs/blob/master/include/ecs/EntityManager.h) file, the interface is easy to understand.
+Otherwise, just look at the [Quadtree.h](https://github.com/pvigier/Quadtree/blob/master/include/Quadtree.h) file, the interface is easy to understand.
 
 ## License
 
