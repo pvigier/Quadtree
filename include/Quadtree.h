@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <type_traits>
 #include <vector>
