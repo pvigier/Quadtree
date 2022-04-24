@@ -51,7 +51,7 @@ endfunction()
 
 # Benchmarks
 
-option (BUILD_BENCHMARKS "Build the benchmarks." ON)
+option (BUILD_BENCHMARKS "Build the benchmarks." OFF)
 if (BUILD_BENCHMARKS)
     add_subdirectory(benchmarks)
 endif()
@@ -76,7 +76,7 @@ endif()
 
 # Tests
 
-option (BUILD_TESTING "Build the testing tree." ON)
+option(BUILD_TESTING "Build the testing tree." OFF)
 if (BUILD_TESTING)
     enable_testing()
     add_subdirectory(tests)
