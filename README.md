@@ -15,6 +15,8 @@
 * header only
 * implemented with modern C++ features (C++17)
 
+[Google Benchmark](https://github.com/google/benchmark) is required to build the benchmarks and [GoogleTest](https://github.com/google/googletest) is required for the tests.
+
 ## Documentation
 
 I have written an article on my blog describing the design and the code of the library. It is available [here](https://pvigier.github.io/2019/07/28/quadtree-collision-detection.html).
