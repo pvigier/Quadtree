@@ -52,6 +52,10 @@ public:
         return intersections;
     }
 
+    Box<Float> getBounds()const 
+    {
+        return mBox;
+    }
 private:
     static constexpr auto Threshold = std::size_t(16);
     static constexpr auto MaxDepth = std::size_t(8);
