@@ -11,7 +11,27 @@
 namespace quadtree
 {
 
-template<typename T, typename GetBox, typename Equal = std::equal_to<T>, typename Float = float>
+namespace detail
+{
+    template <typename T>
+    struct StdMakeUnique
+    {
+        template <typename... Args>
+        std::unique_ptr<T> operator() (Args&&... args)
+        {
+            return std::make_unique<T>(std::forward<Args>(args)...);
+        }
+    };
+}
+
+template<
+    typename T,
+    typename GetBox,
+    typename Equal = std::equal_to<T>,
+    typename Float = float,
+    template <typename> class Allocator = std::allocator,
+    template <typename> class MakeUnique = detail::StdMakeUnique
+>
 class Quadtree
 {
     static_assert(std::is_convertible_v<std::invoke_result_t<GetBox, const T&>, Box<Float>>,
@@ -21,9 +41,12 @@ class Quadtree
     static_assert(std::is_arithmetic_v<Float>);
 
 public:
+    template <typename U>
+    using vector_type = std::vector< U, Allocator<U> >;
+
     Quadtree(const Box<Float>& box, const GetBox& getBox = GetBox(),
         const Equal& equal = Equal()) :
-        mBox(box), mRoot(std::make_unique<Node>()), mGetBox(getBox), mEqual(equal)
+        mBox(box), mMakeUnique(), mRoot(mMakeUnique()), mGetBox(getBox), mEqual(equal)
     {
 
     }
@@ -38,16 +61,16 @@ public:
         remove(mRoot.get(), mBox, value);
     }
 
-    std::vector<T> query(const Box<Float>& box) const
+    vector_type<T> query(const Box<Float>& box) const
     {
-        auto values = std::vector<T>();
+        auto values = vector_type<T>();
         query(mRoot.get(), mBox, box, values);
         return values;
     }
 
-    std::vector<std::pair<T, T>> findAllIntersections() const
+    vector_type<std::pair<T, T>> findAllIntersections() const
     {
-        auto intersections = std::vector<std::pair<T, T>>();
+        auto intersections = vector_type<std::pair<T, T>>();
         findAllIntersections(mRoot.get(), intersections);
         return intersections;
     }
@@ -61,14 +84,22 @@ private:
     static constexpr auto Threshold = std::size_t(16);
     static constexpr auto MaxDepth = std::size_t(8);
 
+    struct Node;
+#if __cplusplus < 201703L
+    typedef typename std::result_of<MakeUnique<Node>()>::type UniqueNodePtr;
+#else
+    typedef std::invoke_result_t<MakeUnique<Node>> UniqueNodePtr;
+#endif
+
     struct Node
     {
-        std::array<std::unique_ptr<Node>, 4> children;
-        std::vector<T> values;
+        std::array<UniqueNodePtr, 4> children;
+        vector_type<T> values;
     };
 
     Box<Float> mBox;
-    std::unique_ptr<Node> mRoot;
+    MakeUnique<Node> mMakeUnique;
+    UniqueNodePtr mRoot;
     GetBox mGetBox;
     Equal mEqual;
 
@@ -169,9 +200,9 @@ private:
         assert(isLeaf(node) && "Only leaves can be split");
         // Create children
         for (auto& child : node->children)
-            child = std::make_unique<Node>();
+            child = mMakeUnique();
         // Assign values to children
-        auto newValues = std::vector<T>(); // New values for this node
+        auto newValues = vector_type<T>(); // New values for this node
         for (const auto& value : node->values)
         {
             auto i = getQuadrant(box, mGetBox(value));
@@ -249,7 +280,7 @@ private:
             return false;
     }
 
-    void query(Node* node, const Box<Float>& box, const Box<Float>& queryBox, std::vector<T>& values) const
+    void query(Node* node, const Box<Float>& box, const Box<Float>& queryBox, vector_type<T>& values) const
     {
         assert(node != nullptr);
         assert(queryBox.intersects(box));
@@ -269,7 +300,7 @@ private:
         }
     }
 
-    void findAllIntersections(Node* node, std::vector<std::pair<T, T>>& intersections) const
+    void findAllIntersections(Node* node, vector_type<std::pair<T, T>>& intersections) const
     {
         // Find intersections between values stored in this node
         // Make sure to not report the same intersection twice
@@ -295,7 +326,7 @@ private:
         }
     }
 
-    void findIntersectionsInDescendants(Node* node, const T& value, std::vector<std::pair<T, T>>& intersections) const
+    void findIntersectionsInDescendants(Node* node, const T& value, vector_type<std::pair<T, T>>& intersections) const
     {
         // Test against the values stored in this node
         for (const auto& other : node->values)
