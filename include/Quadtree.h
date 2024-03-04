@@ -86,7 +86,7 @@ private:
             // North West
             case 0:
                 return Box<Float>(origin, childSize);
-            // Norst East
+            // North East
             case 1:
                 return Box<Float>(Vector2<Float>(origin.x + childSize.x, origin.y), childSize);
             // South West
